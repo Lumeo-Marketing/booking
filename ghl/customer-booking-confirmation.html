@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <title>Your BlueHippo appointment is confirmed</title>
+  </head>
+  <body style="margin: 0; padding: 0; background-color: #eef4ff; font-family: Arial, Helvetica, sans-serif; color: #101a34">
+    <div style="display: none; max-height: 0; overflow: hidden; opacity: 0; color: transparent">
+      Your BlueHippo HVAC appointment has been confirmed.
+    </div>
+
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width: 100%; background-color: #eef4ff">
+      <tr>
+        <td align="center" style="padding: 32px 16px">
+          <table
+            role="presentation"
+            width="100%"
+            cellspacing="0"
+            cellpadding="0"
+            border="0"
+            style="width: 100%; max-width: 640px; overflow: hidden; border: 1px solid #d8e5f6; border-radius: 20px; background-color: #ffffff"
+          >
+            <tr>
+              <td align="center" style="background-color: #2870ec; padding: 24px 24px 22px">
+                <img
+                  src="https://vibe.filesafe.space/1789997936096434917/attachments/408c2677-f990-4337-83ac-afed469853ed.webp"
+                  width="190"
+                  alt="BlueHippo HVAC"
+                  style="display: block; width: 190px; max-width: 100%; height: auto; border: 0"
+                />
+              </td>
+            </tr>
+
+            <tr>
+              <td align="center" style="padding: 32px 32px 14px">
+                <div
+                  style="width: 58px; height: 58px; border: 3px solid #2870ec; border-radius: 50%; color: #2870ec; font-size: 32px; font-weight: 700; line-height: 56px; text-align: center"
+                >
+                  &#10003;
+                </div>
+                <h1 style="margin: 18px 0 8px; color: #101a34; font-size: 27px; line-height: 1.25">
+                  You're booked!
+                </h1>
+                <p style="margin: 0; color: #52627c; font-size: 15px; line-height: 1.6">
+                  Hi {{inboundWebhookRequest.body.customer.firstName}}, your BlueHippo HVAC appointment has been confirmed.
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding: 16px 32px 30px">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="border: 1px solid #cfe0f7; border-radius: 14px; background-color: #edf5ff; padding: 20px">
+                      <div style="color: #2870ec; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase">
+                        Appointment time
+                      </div>
+                      <div style="padding-top: 8px; color: #101a34; font-size: 19px; font-weight: 700; line-height: 1.4">
+                        {{inboundWebhookRequest.body.appointment.startTimeDisplay}}
+                      </div>
+                      <div style="padding-top: 4px; color: #61718b; font-size: 13px; line-height: 1.5">
+                        {{inboundWebhookRequest.body.appointment.timezoneDisplay}}
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top: 16px">
+                  <tr>
+                    <td style="border: 1px solid #dbe7f5; border-radius: 14px; padding: 18px 20px">
+                      <div style="color: #71809a; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase">
+                        Services requested
+                      </div>
+                      <div style="padding-top: 7px; color: #101a34; font-size: 15px; font-weight: 700; line-height: 1.55">
+                        {{inboundWebhookRequest.body.appointment.servicesDisplay}}
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+
+                <h2 style="margin: 26px 0 10px; color: #101a34; font-size: 16px; line-height: 1.4">
+                  Service location
+                </h2>
+                <div style="border: 1px solid #dbe7f5; border-radius: 14px; padding: 17px 20px; color: #34435d; font-size: 14px; line-height: 1.65">
+                  {{inboundWebhookRequest.body.serviceAddress.address1}}<br />
+                  {{inboundWebhookRequest.body.serviceAddress.city}},
+                  {{inboundWebhookRequest.body.serviceAddress.state}}
+                  {{inboundWebhookRequest.body.serviceAddress.postalCode}}
+                </div>
+
+                <h2 style="margin: 26px 0 10px; color: #101a34; font-size: 16px; line-height: 1.4">
+                  Notes for our technician
+                </h2>
+                <div style="min-height: 42px; border: 1px solid #dbe7f5; border-radius: 14px; padding: 17px 20px; color: #34435d; font-size: 14px; line-height: 1.65">
+                  {{inboundWebhookRequest.body.appointment.notes}}
+                </div>
+
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top: 28px">
+                  <tr>
+                    <td align="center">
+                      <a
+                        href="tel:+12109721009"
+                        style="display: inline-block; border-radius: 10px; background-color: #2870ec; padding: 13px 24px; color: #ffffff; font-size: 14px; font-weight: 700; line-height: 1; text-decoration: none"
+                      >Call (210) 972-1009</a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin: 24px 0 0; color: #61718b; font-size: 13px; line-height: 1.65; text-align: center">
+                  Need to make a change? Call us at
+                  <a href="tel:+12109721009" style="color: #2870ec; font-weight: 700; text-decoration: none">(210) 972-1009</a>
+                  or email
+                  <a href="mailto:info@callbluehippo.com" style="color: #2870ec; font-weight: 700; text-decoration: none">info@callbluehippo.com</a>.
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td align="center" style="border-top: 1px solid #e4ecf7; background-color: #f8fbff; padding: 20px 24px; color: #71809a; font-size: 12px; line-height: 1.6">
+                BlueHippo HVAC<br />
+                7666 Bandera Rd, San Antonio, TX<br />
+                This email was sent because you booked a service appointment with us.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

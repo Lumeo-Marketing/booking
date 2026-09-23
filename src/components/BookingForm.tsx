@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import gsap from "gsap";
+import { useServerFn } from "@tanstack/react-start";
+import { useShallow } from "zustand/react/shallow";
 import {
   MapPin,
   Wrench,
@@ -19,17 +22,16 @@ import {
   Droplets,
   Filter,
   Siren,
+  Check,
 } from "lucide-react";
 import {
   CALENDAR_ID,
-  LOCATION_ID,
-  CUSTOM_FIELDS,
   fetchCalendarFreeSlots,
-  submitCalendarBooking,
   getBrowserTimezone,
   type FreeSlotsResponse,
 } from "../lib/booking";
-import { trackBookingSubmission } from "../lib/form-tracking";
+import { submitBooking } from "../lib/booking-functions";
+import { useBookingStore } from "../stores/booking-store";
 
 type StepId = "LOCATION" | "SERVICE" | "SCHEDULE" | "CONTACT" | "ADDITIONAL";
 
@@ -56,7 +58,7 @@ const CONTACT_PREFS = [
   { label: "Phone", icon: Phone },
   { label: "Email", icon: Mail },
   { label: "Text Message", icon: MessageSquare },
-];
+] as const;
 
 const slotLabel = (iso: string) =>
   new Date(iso).toLocaleTimeString("en-US", {
@@ -71,28 +73,77 @@ function classNames(...c: (string | false | undefined)[]) {
 }
 
 export default function BookingForm() {
-  const [step, setStep] = useState(0);
-  const [zip, setZip] = useState("");
-  const [service, setService] = useState("");
+  const {
+    step,
+    zip,
+    services,
+    selectedDay,
+    selectedSlot,
+    firstName,
+    lastName,
+    email,
+    phone,
+    contactPref,
+    notes,
+    address,
+    city,
+    state,
+    submissionId,
+    updateProgress,
+    resetProgress,
+  } = useBookingStore(
+    useShallow((state) => ({
+      step: state.step,
+      zip: state.zip,
+      services: state.services,
+      selectedDay: state.selectedDay,
+      selectedSlot: state.selectedSlot,
+      firstName: state.firstName,
+      lastName: state.lastName,
+      email: state.email,
+      phone: state.phone,
+      contactPref: state.contactPref,
+      notes: state.notes,
+      address: state.address,
+      city: state.city,
+      state: state.state,
+      submissionId: state.submissionId,
+      updateProgress: state.updateProgress,
+      resetProgress: state.resetProgress,
+    })),
+  );
   const [slots, setSlots] = useState<FreeSlotsResponse>({});
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState("");
-  const [selectedDay, setSelectedDay] = useState<string>("");
-  const [selectedSlot, setSelectedSlot] = useState<string>("");
-
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [contactPref, setContactPref] = useState("Phone");
-
-  const [notes, setNotes] = useState("");
-  const [address, setAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [notificationQueued, setNotificationQueued] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const directionRef = useRef<1 | -1>(1);
+  const submissionLockRef = useRef(false);
 
   const tz = useMemo(() => getBrowserTimezone(), []);
+  const submitBookingFn = useServerFn(submitBooking);
+
+  useEffect(() => {
+    void useBookingStore.persist.rehydrate();
+  }, []);
+
+  useEffect(() => {
+    if (!contentRef.current) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const tween = gsap.fromTo(
+      contentRef.current,
+      { autoAlpha: 0, x: reduceMotion ? 0 : directionRef.current * 34 },
+      { autoAlpha: 1, x: 0, duration: reduceMotion ? 0.01 : 0.35, ease: "power2.out" },
+    );
+
+    return () => {
+      tween.kill();
+    };
+  }, [step]);
 
   // Fetch a 14-day window of availability when entering the Schedule step.
   useEffect(() => {
@@ -107,8 +158,20 @@ export default function BookingForm() {
         const data = await fetchCalendarFreeSlots(CALENDAR_ID, start, end);
         if (!cancelled) {
           setSlots(data);
-          const firstDay = Object.keys(data).find((d) => data[d].slots?.length);
-          if (firstDay) setSelectedDay(firstDay);
+          const firstDay = Object.keys(data).find(
+            (day) => (data[day]?.slots?.length ?? 0) > 0,
+          );
+          const savedProgress = useBookingStore.getState();
+          const savedDayIsAvailable = Boolean(
+            savedProgress.selectedDay && data[savedProgress.selectedDay]?.slots?.length,
+          );
+          const allSlots = Object.values(data).flatMap((day) => day.slots ?? []);
+          updateProgress({
+            selectedDay: savedDayIsAvailable ? savedProgress.selectedDay : (firstDay ?? ""),
+            selectedSlot: allSlots.includes(savedProgress.selectedSlot)
+              ? savedProgress.selectedSlot
+              : "",
+          });
         }
       } catch {
         if (!cancelled) setSlotsError("Couldn't load open time slots.");
@@ -120,7 +183,7 @@ export default function BookingForm() {
     return () => {
       cancelled = true;
     };
-  }, [step]);
+  }, [step, updateProgress]);
 
   const days = useMemo(() => {
     const keys = Object.keys(slots).sort();
@@ -143,67 +206,92 @@ export default function BookingForm() {
       case 0:
         return /^\d{5}(-\d{4})?$/.test(zip);
       case 1:
-        return !!service;
+        return services.length > 0;
       case 2:
         return !!selectedSlot;
       case 3:
-        return (
+        return Boolean(
           firstName.trim() &&
           lastName.trim() &&
           /^\S+@\S+\.\S+$/.test(email) &&
           phone.trim().length >= 7
         );
       case 4:
-        return true;
+        return Boolean(address.trim().length >= 5 && city.trim() && /^[A-Za-z]{2}$/.test(state));
     }
     return false;
   };
 
-  const next = () => {
-    if (step < STEPS.length - 1) setStep(step + 1);
-    else void submit();
+  const moveToStep = (targetStep: number, direction: 1 | -1) => {
+    if (transitioning || !contentRef.current) return;
+    directionRef.current = direction;
+    setTransitioning(true);
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    gsap.to(contentRef.current, {
+      autoAlpha: 0,
+      x: reduceMotion ? 0 : direction * -34,
+      duration: reduceMotion ? 0.01 : 0.2,
+      ease: "power2.in",
+      onComplete: () => {
+        updateProgress({ step: targetStep });
+        setTransitioning(false);
+      },
+    });
   };
-  const back = () => setStep(Math.max(0, step - 1));
+
+  const next = async () => {
+    if (step < STEPS.length - 1) moveToStep(step + 1, 1);
+    else await submit();
+  };
+  const back = () => moveToStep(Math.max(0, step - 1), -1);
+
+  const toggleService = (service: string) => {
+    updateProgress({
+      services: services.includes(service)
+        ? services.filter((selectedService) => selectedService !== service)
+        : [...services, service],
+    });
+  };
 
   const submit = async () => {
+    if (submissionLockRef.current) return;
+    submissionLockRef.current = true;
     setSubmitting(true);
     setSubmitError("");
     try {
-      await submitCalendarBooking({
-        locationId: LOCATION_ID,
-        calendarId: CALENDAR_ID,
-        firstName,
-        lastName,
-        email,
-        phone,
-        selectedSlot,
-        notes,
-        address1: address,
-        postalCode: zip,
-        timezone: tz,
-        customFields: [
-          { id: CUSTOM_FIELDS.serviceType, field_value: service },
-          { id: CUSTOM_FIELDS.zipCode, field_value: zip },
-          { id: CUSTOM_FIELDS.contactPreference, field_value: contactPref },
-        ],
+      const activeSubmissionId = submissionId || crypto.randomUUID();
+      if (!submissionId) updateProgress({ submissionId: activeSubmissionId });
+
+      const result = await submitBookingFn({
+        data: {
+          firstName,
+          lastName,
+          email,
+          phone,
+          services,
+          selectedSlot,
+          timezone: tz,
+          contactPref,
+          address,
+          city,
+          state: state.toUpperCase(),
+          zip,
+          notes,
+          submissionId: activeSubmissionId,
+          page: {
+            url: window.location.href,
+            title: document.title,
+            path: window.location.pathname,
+            userAgent: navigator.userAgent,
+          },
+        },
       });
 
-      // Fire CRM form-tracking event so subaccount automations can trigger on submission.
-      trackBookingSubmission({
-        firstName,
-        lastName,
-        email,
-        phone,
-        address,
-        zip,
-        notes,
-        timezone: tz,
-        service,
-        contactPref,
-      });
-
+      useBookingStore.persist.clearStorage();
+      setNotificationQueued(result.webhookDelivered);
       setConfirmed(true);
     } catch {
+      submissionLockRef.current = false;
       setSubmitError("Booking failed. Please try again or call us.");
     } finally {
       setSubmitting(false);
@@ -227,16 +315,17 @@ export default function BookingForm() {
                 minute: "2-digit",
               })}
           </span>
-          . A confirmation is on its way to {email}.
+          .{" "}
+          {notificationQueued
+            ? `Confirmation details are being sent to ${email}.`
+            : "Your appointment is confirmed. Please save these details; our team will follow up shortly."}
         </p>
         <button
           onClick={() => {
             setConfirmed(false);
-            setStep(0);
-            setZip("");
-            setService("");
-            setSelectedSlot("");
-            setSelectedDay("");
+            setNotificationQueued(false);
+            submissionLockRef.current = false;
+            resetProgress();
           }}
           className="btn-primary mt-2 rounded-lg px-6 py-2.5 text-sm font-semibold"
         >
@@ -247,7 +336,7 @@ export default function BookingForm() {
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-3xl overflow-hidden rounded-[28px] border border-border bg-card shadow-[0_20px_70px_rgba(42,67,179,0.14)]">
+    <div className="relative mx-auto w-full max-w-4xl overflow-hidden rounded-[20px] border border-border bg-card shadow-[0_20px_70px_rgba(42,67,179,0.14)]">
       <div className="bg-primary px-6 py-5 text-primary-foreground sm:px-10">
         <div className="flex justify-center">
           <img
@@ -259,20 +348,25 @@ export default function BookingForm() {
       </div>
 
       {/* Progress bar */}
-      <div className="px-6 pt-5">
-        <div className="flex items-center justify-between">
+      <div className="px-6 pt-5 sm:px-10">
+        <div className="relative grid w-full grid-cols-5">
+          <div className="absolute left-[10%] right-[10%] top-[17px] z-0 h-px bg-border" />
+          <div
+            className="absolute left-[10%] top-[17px] z-0 h-px bg-primary transition-[width] duration-300"
+            style={{ width: `${(step / (STEPS.length - 1)) * 80}%` }}
+          />
           {STEPS.map((s, i) => {
             const Icon = s.icon;
             const active = i === step;
             const done = i < step;
             return (
-              <div key={s.id} className="flex flex-1 items-center">
-                <div className="flex flex-col items-center gap-1">
+              <div key={s.id} className="relative z-10 flex justify-center">
+                <div className="flex flex-col items-center gap-1.5">
                   <div
                     className={classNames(
-                      "flex h-9 w-9 items-center justify-center rounded-full border-2 transition-colors",
+                      "flex h-9 w-9 items-center justify-center rounded-full border bg-card transition-all duration-300",
                       active && "border-primary bg-primary text-primary-foreground",
-                      done && "border-primary bg-primary/10 text-primary",
+                      done && "border-primary bg-card text-primary",
                       !active && !done && "border-border bg-surface text-muted-foreground",
                     )}
                   >
@@ -280,33 +374,25 @@ export default function BookingForm() {
                   </div>
                   <span
                     className={classNames(
-                      "text-[10px] font-medium uppercase tracking-wide",
-                      active ? "text-primary" : "text-muted-foreground",
+                      "text-[9px] uppercase tracking-wide sm:text-[10px]",
+                      active
+                        ? "font-extrabold text-primary"
+                        : "font-medium text-muted-foreground",
                     )}
                   >
                     {s.label}
                   </span>
                 </div>
-                {i < STEPS.length - 1 && (
-                  <div className="mx-1 mb-4 h-0.5 flex-1 rounded-full bg-border">
-                    <div
-                      className={classNames(
-                        "h-full rounded-full transition-all",
-                        i < step ? "bg-primary" : "bg-transparent",
-                      )}
-                    />
-                  </div>
-                )}
               </div>
             );
           })}
         </div>
       </div>
 
-      <hr className="mx-6 my-4 border-border" />
+      <hr className="mx-6 my-4 border-border sm:mx-10" />
 
       {/* Step body */}
-      <div className="px-6 py-4">
+      <div ref={contentRef} className="px-6 py-4 sm:px-10">
         {step === 0 && (
           <div className="flex flex-col items-center gap-3 py-2 text-center">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-accent text-primary">
@@ -314,7 +400,7 @@ export default function BookingForm() {
             </div>
             <h3 className="text-xl font-bold text-ink">Where are you?</h3>
             <p className="max-w-xs text-sm text-muted-foreground">
-              Enter your zip or postal code so we can check if we service your area.
+              Enter the ZIP code for your service address.
             </p>
             <div className="mt-2 w-full max-w-xs text-left">
               <label className="mb-1.5 block text-sm font-semibold text-foreground">
@@ -324,7 +410,9 @@ export default function BookingForm() {
                 type="tel"
                 inputMode="numeric"
                 value={zip}
-                onChange={(e) => setZip(e.target.value.replace(/[^\d-]/g, ""))}
+                onChange={(e) =>
+                  updateProgress({ zip: e.target.value.replace(/[^\d-]/g, "") })
+                }
                 placeholder="e.g. 78154"
                 className="w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm outline-none ring-primary focus:ring-2"
               />
@@ -333,29 +421,46 @@ export default function BookingForm() {
         )}
 
         {step === 1 && (
-          <div className="flex flex-col gap-3">
-            <h3 className="text-xl font-bold text-ink">What service do you need?</h3>
-            <p className="text-sm text-muted-foreground">
-              Choose the service that best matches your request.
-            </p>
+          <div className="flex flex-col">
+            <div className="mb-4 flex items-end justify-between gap-3">
+              <div>
+                <h3 className="mb-1 text-xl font-bold text-ink">What services do you need?</h3>
+                <p className="text-sm text-muted-foreground">
+                  Select all the services that apply.
+                </p>
+              </div>
+              {services.length > 0 && (
+                <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                  {services.length} selected
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
               {SERVICES.map((s) => {
                 const Icon = s.icon;
+                const selected = services.includes(s.label);
                 return (
                   <button
+                    type="button"
                     key={s.label}
-                    onClick={() => setService(s.label)}
+                    aria-pressed={selected}
+                    onClick={() => toggleService(s.label)}
                     className={classNames(
-                      "flex flex-col items-center gap-2 rounded-xl border px-3 py-4 text-center text-sm font-semibold transition-all",
-                      service === s.label
-                        ? "border-primary bg-primary/10 text-primary shadow-sm"
+                      "relative flex min-h-28 flex-col items-center justify-center gap-2 rounded-xl border px-3 py-4 text-center text-sm font-semibold transition-all duration-200",
+                      selected
+                        ? "border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary/15"
                         : "border-border bg-surface text-foreground hover:border-primary/50",
                     )}
                   >
+                    {selected && (
+                      <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                        <Check className="h-3 w-3" strokeWidth={3} />
+                      </span>
+                    )}
                     <span
                       className={classNames(
                         "flex h-14 w-14 items-center justify-center rounded-2xl",
-                        service === s.label
+                        selected
                           ? "bg-primary text-primary-foreground"
                           : "bg-primary/10 text-primary",
                       )}
@@ -390,7 +495,7 @@ export default function BookingForm() {
 
             {!slotsLoading && !slotsError && (
               <>
-                <div className="flex gap-2 overflow-x-auto pb-2">
+                <div className="date-strip flex gap-2 overflow-x-auto">
                   {days.length === 0 && (
                     <p className="text-sm text-muted-foreground">
                       No open slots in the next two weeks — please call us.
@@ -401,11 +506,10 @@ export default function BookingForm() {
                       key={d.key}
                       disabled={!d.hasSlots}
                       onClick={() => {
-                        setSelectedDay(d.key);
-                        setSelectedSlot("");
+                        updateProgress({ selectedDay: d.key, selectedSlot: "" });
                       }}
                       className={classNames(
-                        "flex min-w-[68px] flex-col items-center gap-0.5 rounded-xl border px-3 py-2 transition-all",
+                        "flex h-[100px] min-w-[86px] flex-col items-center justify-center gap-1 rounded-2xl border px-4 py-3 transition-all sm:min-w-[94px]",
                         !d.hasSlots && "opacity-40",
                         selectedDay === d.key
                           ? "border-primary bg-primary/10 text-primary"
@@ -420,13 +524,13 @@ export default function BookingForm() {
                 </div>
 
                 {selectedDay && (
-                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {currentDaySlots.map((slot) => (
                       <button
                         key={slot}
-                        onClick={() => setSelectedSlot(slot)}
+                        onClick={() => updateProgress({ selectedSlot: slot })}
                         className={classNames(
-                          "rounded-lg border px-2 py-2 text-sm font-medium transition-all",
+                          "rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all",
                           selectedSlot === slot
                             ? "border-primary bg-primary text-primary-foreground"
                             : "border-border bg-surface text-foreground hover:border-primary/50",
@@ -454,14 +558,14 @@ export default function BookingForm() {
               <Field label="First Name *">
                 <input
                   value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
+                  onChange={(e) => updateProgress({ firstName: e.target.value })}
                   className={inputCls}
                 />
               </Field>
               <Field label="Last Name *">
                 <input
                   value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
+                  onChange={(e) => updateProgress({ lastName: e.target.value })}
                   className={inputCls}
                 />
               </Field>
@@ -470,7 +574,7 @@ export default function BookingForm() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => updateProgress({ email: e.target.value })}
                 className={inputCls}
               />
             </Field>
@@ -478,7 +582,7 @@ export default function BookingForm() {
               <input
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => updateProgress({ phone: e.target.value })}
                 className={inputCls}
               />
             </Field>
@@ -492,7 +596,7 @@ export default function BookingForm() {
                   return (
                     <button
                       key={p.label}
-                      onClick={() => setContactPref(p.label)}
+                      onClick={() => updateProgress({ contactPref: p.label })}
                       className={classNames(
                         "flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-sm font-medium transition-all",
                         contactPref === p.label
@@ -511,19 +615,43 @@ export default function BookingForm() {
 
         {step === 4 && (
           <div className="flex flex-col gap-3">
-            <h3 className="text-xl font-bold text-ink">Anything else?</h3>
-            <Field label="Service address">
+            <div>
+              <h3 className="text-xl font-bold text-ink">Service details</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Tell us where the technician should go and anything they should know.
+              </p>
+            </div>
+            <Field label="Street address *">
               <input
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Street address (optional)"
+                onChange={(e) => updateProgress({ address: e.target.value })}
+                placeholder="Street address"
                 className={inputCls}
               />
             </Field>
+            <div className="grid grid-cols-[1fr_100px] gap-3">
+              <Field label="City *">
+                <input
+                  value={city}
+                  onChange={(e) => updateProgress({ city: e.target.value })}
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="State *">
+                <input
+                  value={state}
+                  maxLength={2}
+                  onChange={(e) =>
+                    updateProgress({ state: e.target.value.replace(/[^A-Za-z]/g, "").toUpperCase() })
+                  }
+                  className={inputCls}
+                />
+              </Field>
+            </div>
             <Field label="Notes for the technician">
               <textarea
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(e) => updateProgress({ notes: e.target.value })}
                 rows={4}
                 placeholder="Describe the issue, access details, pets, etc."
                 className={classNames(inputCls, "resize-none")}
@@ -534,10 +662,15 @@ export default function BookingForm() {
               <p className="mb-2 font-bold text-ink">Review your booking</p>
               <ul className="space-y-1 text-muted-foreground">
                 <li>
-                  <span className="font-medium text-foreground">Service:</span> {service}
+                  <span className="font-medium text-foreground">Services:</span>{" "}
+                  {services.join(", ")}
                 </li>
                 <li>
                   <span className="font-medium text-foreground">Zip:</span> {zip}
+                </li>
+                <li>
+                  <span className="font-medium text-foreground">Address:</span> {address}, {city},{" "}
+                  {state} {zip}
                 </li>
                 <li>
                   <span className="font-medium text-foreground">When:</span>{" "}
@@ -564,7 +697,7 @@ export default function BookingForm() {
       </div>
 
       {/* Footer */}
-      <div className="border-t border-border px-6 py-4">
+      <div className="border-t border-border px-6 py-4 sm:px-10">
         {submitError && (
           <div className="mb-3 flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
             <AlertCircle className="h-4 w-4" /> {submitError}
@@ -572,15 +705,17 @@ export default function BookingForm() {
         )}
         <div className="flex items-center justify-between">
           <button
+            type="button"
             onClick={back}
-            disabled={step === 0 || submitting}
+            disabled={step === 0 || submitting || transitioning}
             className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
           >
             <ChevronLeft className="h-4 w-4" /> Back
           </button>
           <button
-            onClick={next}
-            disabled={!canContinue() || submitting}
+            type="button"
+            onClick={() => void next()}
+            disabled={!canContinue() || submitting || transitioning}
             className="btn-primary inline-flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-semibold"
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}

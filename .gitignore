@@ -15,6 +15,9 @@ dist-ssr
 .tanstack/**
 .nitro
 *.local
+.env
+.env.*
+!.env.example
 src/tailwind.config.vibe.json
 
 # Wrangler / Cloudflare

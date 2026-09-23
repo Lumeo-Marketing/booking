@@ -167,3 +167,13 @@
     box-shadow: none;
   }
 }
+
+@layer utilities {
+  .date-strip {
+    scrollbar-width: none;
+  }
+
+  .date-strip::-webkit-scrollbar {
+    display: none;
+  }
+}

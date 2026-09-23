@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>New BlueHippo booking</title>
+  </head>
+  <body style="margin: 0; padding: 0; background: #eef4ff; font-family: Arial, sans-serif">
+    <div style="display: none; max-height: 0; overflow: hidden; opacity: 0">
+      New booking from {{contact.first_name}} {{contact.last_name}}
+    </div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+      <tr>
+        <td align="center" style="padding: 32px 16px">
+          <table
+            role="presentation"
+            width="100%"
+            cellspacing="0"
+            cellpadding="0"
+            border="0"
+            style="max-width: 640px; overflow: hidden; border: 1px solid #dbe7f5; border-radius: 18px; background: #ffffff"
+          >
+            <tr>
+              <td align="center" style="background: #2870ec; padding: 24px">
+                <img
+                  src="https://vibe.filesafe.space/1789997936096434917/attachments/408c2677-f990-4337-83ac-afed469853ed.webp"
+                  width="180"
+                  alt="BlueHippo HVAC"
+                  style="display: block; width: 180px; max-width: 100%; height: auto"
+                />
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 30px 32px 12px">
+                <div style="margin-bottom: 8px; color: #2870ec; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase">
+                  New online booking
+                </div>
+                <h1 style="margin: 0; color: #101a34; font-size: 25px; line-height: 1.3">
+                  {{contact.first_name}} {{contact.last_name}} booked an appointment
+                </h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 32px 30px">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td style="padding: 16px 18px; border-radius: 12px; background: #edf5ff">
+                      <div style="color: #5b6b86; font-size: 12px; font-weight: 700; text-transform: uppercase">Appointment</div>
+                      <div style="padding-top: 6px; color: #101a34; font-size: 18px; font-weight: 700">{{inboundWebhookRequest.body.appointment.startTimeDisplay}}</div>
+                      <div style="padding-top: 5px; color: #52627c; font-size: 14px">{{inboundWebhookRequest.body.appointment.timezoneDisplay}}</div>
+                    </td>
+                  </tr>
+                </table>
+
+                <h2 style="margin: 26px 0 10px; color: #101a34; font-size: 16px">Customer details</h2>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="color: #34435d; font-size: 14px; line-height: 1.55">
+                  <tr><td width="145" style="padding: 5px 0; color: #71809a">Phone</td><td style="padding: 5px 0; font-weight: 600">{{contact.phone}}</td></tr>
+                  <tr><td width="145" style="padding: 5px 0; color: #71809a">Email</td><td style="padding: 5px 0; font-weight: 600">{{contact.email}}</td></tr>
+                  <tr><td width="145" style="padding: 5px 0; color: #71809a">Preferred contact</td><td style="padding: 5px 0; font-weight: 600">{{contact.contact_preference}}</td></tr>
+                  <tr><td width="145" style="padding: 5px 0; color: #71809a">Services</td><td style="padding: 5px 0; font-weight: 600">{{inboundWebhookRequest.body.appointment.servicesDisplay}}</td></tr>
+                </table>
+
+                <h2 style="margin: 26px 0 10px; color: #101a34; font-size: 16px">Service location</h2>
+                <div style="border: 1px solid #dbe7f5; border-radius: 12px; padding: 16px 18px; color: #34435d; font-size: 14px; line-height: 1.6">
+                  {{contact.address1}}<br />
+                  {{contact.city}}, {{contact.state}} {{contact.postal_code}}
+                </div>
+
+                <h2 style="margin: 26px 0 10px; color: #101a34; font-size: 16px">Technician notes</h2>
+                <div style="min-height: 44px; border: 1px solid #dbe7f5; border-radius: 12px; padding: 16px 18px; color: #34435d; font-size: 14px; line-height: 1.6">
+                  {{appointment.notes}}
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="border-top: 1px solid #e4ecf7; padding: 18px 32px; color: #71809a; font-size: 12px; text-align: center">
+                Submitted through the BlueHippo online booking form.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
