@@ -1,8 +1,7 @@
 import { CALENDAR_ID, CUSTOM_FIELDS, LOCATION_ID } from "../lib/booking";
 import type { BookingSubmission } from "../lib/booking-schema";
 
-const GHL_API_URL = "https://services.leadconnectorhq.com";
-const GHL_API_VERSION = "2023-02-21";
+const BOOKING_ENDPOINT = "https://backend.leadconnectorhq.com/vibe-ai/booking/submit";
 const SUBMISSION_CACHE_MS = 15 * 60 * 1000;
 
 type BookingResult = {
@@ -17,10 +16,6 @@ async function readJsonResponse(response: Response): Promise<Record<string, unkn
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) return {};
   return (await response.json()) as Record<string, unknown>;
-}
-
-async function readErrorResponse(response: Response) {
-  return (await response.text()).slice(0, 500);
 }
 
 function formatAppointmentTime(startTime: string, timeZone: string) {
@@ -69,97 +64,49 @@ function formatAppointmentTime(startTime: string, timeZone: string) {
 async function processBooking(data: BookingSubmission): Promise<BookingResult> {
   const locationId = process.env["GHL_LOCATION_ID"]?.trim() || LOCATION_ID;
   const calendarId = process.env["GHL_CALENDAR_ID"]?.trim() || CALENDAR_ID;
-  const accessToken = process.env["GHL_PRIVATE_INTEGRATION_TOKEN"]?.trim();
-  if (!accessToken) {
-    throw new Error("GHL_PRIVATE_INTEGRATION_TOKEN is not configured");
-  }
-
   const services = data.services.join(", ");
-  const ghlHeaders = {
-    Authorization: `Bearer ${accessToken}`,
-    "Content-Type": "application/json",
-    Version: GHL_API_VERSION,
-  };
-
-  const contactResponse = await fetch(`${GHL_API_URL}/contacts/upsert`, {
+  const bookingResponse = await fetch(BOOKING_ENDPOINT, {
     method: "POST",
-    headers: ghlHeaders,
+    headers: {
+      "Content-Type": "application/json",
+      "Idempotency-Key": data.submissionId,
+    },
     body: JSON.stringify({
       locationId,
+      calendarId,
       firstName: data.firstName,
       lastName: data.lastName,
       email: data.email,
       phone: data.phone,
+      selectedSlot: data.selectedSlot,
+      selectedTimezone: data.timezone,
       timezone: data.timezone,
+      sessionId: data.submissionId,
+      notes: data.notes,
       address1: data.address,
       city: data.city,
       state: data.state.toUpperCase(),
       postalCode: data.zip,
       country: "US",
-      source: "BlueHippo Online Booking",
-      createNewIfDuplicateAllowed: false,
       customFields: [
-        { id: CUSTOM_FIELDS.serviceType, fieldValue: services },
-        { id: CUSTOM_FIELDS.zipCode, fieldValue: data.zip },
-        { id: CUSTOM_FIELDS.contactPreference, fieldValue: data.contactPref },
+        { id: CUSTOM_FIELDS.serviceType, field_value: services },
+        { id: CUSTOM_FIELDS.zipCode, field_value: data.zip },
+        { id: CUSTOM_FIELDS.contactPreference, field_value: data.contactPref },
       ],
     }),
   });
 
-  if (!contactResponse.ok) {
-    const responseBody = await readErrorResponse(contactResponse);
-    console.error("GHL contact upsert failed", {
-      status: contactResponse.status,
+  if (!bookingResponse.ok) {
+    const responseBody = (await bookingResponse.text()).slice(0, 500);
+    console.error("GHL booking submission failed", {
+      status: bookingResponse.status,
       submissionId: data.submissionId,
       responseBody,
     });
-    throw new Error("Contact creation failed");
+    throw new Error("Booking submission failed");
   }
 
-  const contactResult = await readJsonResponse(contactResponse);
-  const contact = contactResult["contact"];
-  const contactId =
-    typeof contact === "object" && contact !== null && "id" in contact
-      ? (contact as { id?: unknown }).id
-      : undefined;
-  if (typeof contactId !== "string" || !contactId) {
-    console.error("GHL contact upsert returned no contact ID", {
-      submissionId: data.submissionId,
-      contactResult,
-    });
-    throw new Error("Contact creation failed");
-  }
-
-  const appointmentResponse = await fetch(`${GHL_API_URL}/calendars/events/appointments`, {
-    method: "POST",
-    headers: ghlHeaders,
-    body: JSON.stringify({
-      title: `${services} - ${data.firstName} ${data.lastName}`,
-      appointmentStatus: "confirmed",
-      description: data.notes || `Services requested: ${services}`,
-      address: `${data.address}, ${data.city}, ${data.state.toUpperCase()} ${data.zip}`,
-      calendarId,
-      locationId,
-      contactId,
-      startTime: data.selectedSlot,
-      toNotify: false,
-      ignoreDateRange: false,
-      ignoreFreeSlotValidation: false,
-    }),
-  });
-
-  if (!appointmentResponse.ok) {
-    const responseBody = await readErrorResponse(appointmentResponse);
-    console.error("GHL appointment creation failed", {
-      status: appointmentResponse.status,
-      submissionId: data.submissionId,
-      contactId,
-      responseBody,
-    });
-    throw new Error("Appointment creation failed");
-  }
-
-  const booking = await readJsonResponse(appointmentResponse);
+  const booking = await readJsonResponse(bookingResponse);
   const { startTimeDisplay, timezoneDisplay } = formatAppointmentTime(
     data.selectedSlot,
     data.timezone,

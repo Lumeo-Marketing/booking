@@ -1,9 +1,5 @@
 # HighLevel booking setup
 
-## Required private integration
-
-Create a sub-account private integration token with contact write and calendar/event write access, then configure it as `GHL_PRIVATE_INTEGRATION_TOKEN` on the booking server. The booking flow uses the official contact upsert API with `createNewIfDuplicateAllowed: false`, then creates one appointment for the returned contact ID.
-
 ## Internal notification workflow
 
 Preferred setup:
