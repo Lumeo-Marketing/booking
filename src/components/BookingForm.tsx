@@ -23,6 +23,7 @@ import {
   Filter,
   Siren,
   Check,
+  type LucideIcon,
 } from "lucide-react";
 import {
   CALENDAR_ID,
@@ -43,7 +44,9 @@ const STEPS: { id: StepId; label: string; icon: typeof MapPin }[] = [
   { id: "ADDITIONAL", label: "Additional", icon: ClipboardList },
 ];
 
-const SERVICES: { label: string; icon: typeof Wrench }[] = [
+export type ServiceOption = { label: string; icon: LucideIcon };
+
+export const DEFAULT_SERVICES: ServiceOption[] = [
   { label: "AC Repair", icon: Snowflake },
   { label: "AC Installation", icon: Wind },
   { label: "Heating Repair", icon: Flame },
@@ -53,6 +56,40 @@ const SERVICES: { label: string; icon: typeof Wrench }[] = [
   { label: "Duct Cleaning", icon: Filter },
   { label: "Emergency Service", icon: Siren },
 ];
+
+export type BookingFormTheme = {
+  primary: string;
+  primaryForeground: string;
+  soft: string;
+  softStrong: string;
+  border: string;
+  gradient: string;
+};
+
+export const HVAC_THEME: BookingFormTheme = {
+  primary: "#2c5cff",
+  primaryForeground: "#ffffff",
+  soft: "rgba(44, 92, 255, 0.12)",
+  softStrong: "rgba(44, 92, 255, 0.18)",
+  border: "rgba(148, 163, 184, 0.35)",
+  gradient: "linear-gradient(135deg, #2c5cff 0%, #1f3dd8 100%)",
+};
+
+export const PLUMBING_THEME: BookingFormTheme = {
+  primary: "#3a7bd5",
+  primaryForeground: "#ffffff",
+  soft: "rgba(58, 123, 213, 0.10)",
+  softStrong: "rgba(58, 123, 213, 0.18)",
+  border: "rgba(58, 123, 213, 0.25)",
+  gradient: "linear-gradient(135deg, #3a7bd5 0%, #2c5cff 100%)",
+};
+
+export type BookingFormProps = {
+  serviceCatalog?: ServiceOption[];
+  servicePrompt?: string;
+  serviceSubtext?: string;
+  theme?: BookingFormTheme;
+};
 
 const CONTACT_PREFS = [
   { label: "Phone", icon: Phone },
@@ -72,7 +109,14 @@ function classNames(...c: (string | false | undefined)[]) {
   return c.filter(Boolean).join(" ");
 }
 
-export default function BookingForm() {
+export default function BookingForm({
+  serviceCatalog = DEFAULT_SERVICES,
+  servicePrompt = "What services do you need?",
+  serviceSubtext = "Select all the services that apply.",
+  theme = HVAC_THEME,
+}: BookingFormProps = {}) {
+  const SERVICES = serviceCatalog;
+
   const {
     step,
     zip,
@@ -336,8 +380,17 @@ export default function BookingForm() {
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-4xl overflow-hidden rounded-[20px] border border-border bg-card shadow-[0_20px_70px_rgba(42,67,179,0.14)]">
-      <div className="bg-primary px-6 py-5 text-primary-foreground sm:px-10">
+    <div
+      className="relative mx-auto w-full max-w-4xl overflow-hidden rounded-[20px] border bg-card shadow-[0_20px_70px_rgba(42,67,179,0.14)]"
+      style={{
+        borderColor: theme.border,
+        boxShadow: `0 20px 70px ${theme.softStrong}`,
+      }}
+    >
+      <div
+        className="px-6 py-5 text-primary-foreground sm:px-10"
+        style={{ background: theme.gradient }}
+      >
         <div className="flex justify-center">
           <img
             src="https://vibe.filesafe.space/1789997936096434917/attachments/408c2677-f990-4337-83ac-afed469853ed.webp"
@@ -352,8 +405,11 @@ export default function BookingForm() {
         <div className="relative grid w-full grid-cols-5">
           <div className="absolute left-[10%] right-[10%] top-[17px] z-0 h-px bg-border" />
           <div
-            className="absolute left-[10%] top-[17px] z-0 h-px bg-primary transition-[width] duration-300"
-            style={{ width: `${(step / (STEPS.length - 1)) * 80}%` }}
+            className="absolute left-[10%] top-[17px] z-0 h-px transition-[width] duration-300"
+            style={{
+              width: `${(step / (STEPS.length - 1)) * 80}%`,
+              background: theme.primary,
+            }}
           />
           {STEPS.map((s, i) => {
             const Icon = s.icon;
@@ -365,20 +421,32 @@ export default function BookingForm() {
                   <div
                     className={classNames(
                       "flex h-9 w-9 items-center justify-center rounded-full border bg-card transition-all duration-300",
-                      active && "border-primary bg-primary text-primary-foreground",
-                      done && "border-primary bg-card text-primary",
                       !active && !done && "border-border bg-surface text-muted-foreground",
                     )}
+                    style={
+                      active
+                        ? {
+                            borderColor: theme.primary,
+                            background: theme.primary,
+                            color: theme.primaryForeground,
+                          }
+                        : done
+                          ? {
+                              borderColor: theme.primary,
+                              background: "transparent",
+                              color: theme.primary,
+                            }
+                          : undefined
+                    }
                   >
                     <Icon className="h-4 w-4" />
                   </div>
                   <span
                     className={classNames(
                       "text-[9px] uppercase tracking-wide sm:text-[10px]",
-                      active
-                        ? "font-extrabold text-primary"
-                        : "font-medium text-muted-foreground",
+                      !active && "font-medium text-muted-foreground",
                     )}
+                    style={active ? { color: theme.primary, fontWeight: 800 } : undefined}
                   >
                     {s.label}
                   </span>
@@ -424,10 +492,8 @@ export default function BookingForm() {
           <div className="flex flex-col">
             <div className="mb-4 flex items-end justify-between gap-3">
               <div>
-                <h3 className="mb-1 text-xl font-bold text-ink">What services do you need?</h3>
-                <p className="text-sm text-muted-foreground">
-                  Select all the services that apply.
-                </p>
+                <h3 className="mb-1 text-xl font-bold text-ink">{servicePrompt}</h3>
+                <p className="text-sm text-muted-foreground">{serviceSubtext}</p>
               </div>
               {services.length > 0 && (
                 <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
@@ -447,10 +513,18 @@ export default function BookingForm() {
                     onClick={() => toggleService(s.label)}
                     className={classNames(
                       "relative flex min-h-28 flex-col items-center justify-center gap-2 rounded-xl border px-3 py-4 text-center text-sm font-semibold transition-all duration-200",
-                      selected
-                        ? "border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary/15"
-                        : "border-border bg-surface text-foreground hover:border-primary/50",
+                      !selected && "border-border bg-surface text-foreground hover:border-primary/50",
                     )}
+                    style={
+                      selected
+                        ? {
+                            borderColor: theme.primary,
+                            background: theme.soft,
+                            color: theme.primary,
+                            boxShadow: `inset 0 0 0 1px ${theme.softStrong}`,
+                          }
+                        : undefined
+                    }
                   >
                     {selected && (
                       <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
@@ -458,12 +532,18 @@ export default function BookingForm() {
                       </span>
                     )}
                     <span
-                      className={classNames(
-                        "flex h-14 w-14 items-center justify-center rounded-2xl",
+                      className={classNames("flex h-14 w-14 items-center justify-center rounded-2xl")}
+                      style={
                         selected
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-primary/10 text-primary",
-                      )}
+                          ? {
+                              background: theme.gradient,
+                              color: theme.primaryForeground,
+                            }
+                          : {
+                              background: theme.soft,
+                              color: theme.primary,
+                            }
+                      }
                     >
                       <Icon className="h-7 w-7" />
                     </span>
@@ -531,10 +611,17 @@ export default function BookingForm() {
                         onClick={() => updateProgress({ selectedSlot: slot })}
                         className={classNames(
                           "rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all",
-                          selectedSlot === slot
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border bg-surface text-foreground hover:border-primary/50",
+                          selectedSlot !== slot && "border-border bg-surface text-foreground hover:border-primary/50",
                         )}
+                        style={
+                          selectedSlot === slot
+                            ? {
+                                borderColor: theme.primary,
+                                background: theme.gradient,
+                                color: theme.primaryForeground,
+                              }
+                            : undefined
+                        }
                       >
                         {slotLabel(slot)}
                       </button>
@@ -599,10 +686,17 @@ export default function BookingForm() {
                       onClick={() => updateProgress({ contactPref: p.label })}
                       className={classNames(
                         "flex items-center justify-center gap-1.5 rounded-lg border px-2 py-2 text-sm font-medium transition-all",
-                        contactPref === p.label
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border bg-surface text-foreground hover:border-primary/50",
+                        contactPref !== p.label && "border-border bg-surface text-foreground hover:border-primary/50",
                       )}
+                      style={
+                        contactPref === p.label
+                          ? {
+                              borderColor: theme.primary,
+                              background: `linear-gradient(135deg, ${theme.soft} 0%, rgba(255,255,255,0.72) 100%)`,
+                              color: theme.primary,
+                            }
+                          : undefined
+                      }
                     >
                       <Icon className="h-4 w-4" /> {p.label}
                     </button>
@@ -716,7 +810,12 @@ export default function BookingForm() {
             type="button"
             onClick={() => void next()}
             disabled={!canContinue() || submitting || transitioning}
-            className="btn-primary inline-flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-semibold"
+            className="inline-flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-semibold"
+            style={{
+              background: theme.gradient,
+              color: theme.primaryForeground,
+              opacity: !canContinue() || submitting || transitioning ? 0.7 : 1,
+            }}
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
             {step === STEPS.length - 1 ? "Confirm Booking" : "Continue"}

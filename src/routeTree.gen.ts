@@ -10,33 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as KitchenRouteImport } from './routes/kitchen'
+import { Route as PlumbingRouteImport } from './routes/plumbing'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const KitchenRoute = KitchenRouteImport.update({
+  id: '/kitchen',
+  path: '/kitchen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlumbingRoute = PlumbingRouteImport.update({
+  id: '/plumbing',
+  path: '/plumbing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/kitchen': typeof KitchenRoute
+  '/plumbing': typeof PlumbingRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/kitchen': typeof KitchenRoute
+  '/plumbing': typeof PlumbingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/kitchen': typeof KitchenRoute
+  '/plumbing': typeof PlumbingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/kitchen' | '/plumbing'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/kitchen' | '/plumbing'
+  id: '__root__' | '/' | '/kitchen' | '/plumbing'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  KitchenRoute: typeof KitchenRoute
+  PlumbingRoute: typeof PlumbingRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +68,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/kitchen': {
+      id: '/kitchen'
+      path: '/kitchen'
+      fullPath: '/kitchen'
+      preLoaderRoute: typeof KitchenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plumbing': {
+      id: '/plumbing'
+      path: '/plumbing'
+      fullPath: '/plumbing'
+      preLoaderRoute: typeof PlumbingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  KitchenRoute: KitchenRoute,
+  PlumbingRoute: PlumbingRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
