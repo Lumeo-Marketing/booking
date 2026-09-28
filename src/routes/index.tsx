@@ -1,7 +1,8 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import gsap from "gsap";
-import BookingForm from "../components/BookingForm";import { useBookingStore } from "../stores/booking-store";
+import BookingForm from "../components/BookingForm";
+import { useBookingStore } from "../stores/booking-store";
 const LOGO_URL =
   "https://vibe.filesafe.space/1789997936096434917/attachments/408c2677-f990-4337-83ac-afed469853ed.webp";
 
@@ -113,20 +114,6 @@ function Index() {
             </a>
           </div>
 
-          <div className="mt-4 flex flex-wrap justify-center gap-2">
-            <Link
-              to="/plumbing"
-              className="inline-flex items-center justify-center rounded-full border border-primary/30 bg-white px-4 py-2 text-sm font-semibold text-primary shadow-sm transition hover:border-primary hover:bg-primary/5"
-            >
-              Book Plumbing Service
-            </Link>
-            <Link
-              to="/kitchen"
-              className="inline-flex items-center justify-center rounded-full border border-primary/30 bg-white px-4 py-2 text-sm font-semibold text-primary shadow-sm transition hover:border-primary hover:bg-primary/5"
-            >
-              Book Kitchen Service
-            </Link>
-          </div>
         </div>
 
         <BookingForm />
