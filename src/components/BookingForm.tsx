@@ -89,6 +89,7 @@ export type BookingFormProps = {
   servicePrompt?: string;
   serviceSubtext?: string;
   theme?: BookingFormTheme;
+  source?: "HVAC" | "Plumbing" | "Kitchen";
 };
 
 const CONTACT_PREFS = [
@@ -114,6 +115,7 @@ export default function BookingForm({
   servicePrompt = "What services do you need?",
   serviceSubtext = "Select all the services that apply.",
   theme = HVAC_THEME,
+  source = "HVAC",
 }: BookingFormProps = {}) {
   const SERVICES = serviceCatalog;
 
@@ -308,6 +310,7 @@ export default function BookingForm({
 
       const result = await submitBookingFn({
         data: {
+          source,
           firstName,
           lastName,
           email,

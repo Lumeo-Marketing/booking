@@ -74,6 +74,7 @@ async function processBooking(data: BookingSubmission): Promise<BookingResult> {
     body: JSON.stringify({
       locationId,
       calendarId,
+      source: data.source,
       firstName: data.firstName,
       lastName: data.lastName,
       email: data.email,
@@ -114,6 +115,8 @@ async function processBooking(data: BookingSubmission): Promise<BookingResult> {
   const notificationPayload = {
     event: "booking.created",
     submissionId: data.submissionId,
+    source: data.source,
+    landingPage: data.page.path,
     locationId,
     calendarId,
     customer: {

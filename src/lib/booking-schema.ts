@@ -7,6 +7,7 @@ export const zipValidationSchema = z.object({
 });
 
 export const bookingSubmissionSchema = z.object({
+  source: z.enum(["HVAC", "Plumbing", "Kitchen"]),
   firstName: z.string().trim().min(1).max(80),
   lastName: z.string().trim().min(1).max(80),
   email: z.string().trim().email().max(254),

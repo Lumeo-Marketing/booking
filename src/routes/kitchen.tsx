@@ -89,6 +89,7 @@ function KitchenPage() {
         </div>
 
         <BookingForm
+          source="Kitchen"
           serviceCatalog={KITCHEN_SERVICES}
           servicePrompt="What kitchen service do you need?"
           serviceSubtext="Choose the kitchen services that match your project."
