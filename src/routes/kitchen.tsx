@@ -79,6 +79,15 @@ function KitchenPage() {
 
         </div>
 
+        <div className="mb-5 text-center">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-cyan-700/80">
+            BlueHippo
+          </p>
+          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-cyan-700 sm:text-3xl">
+            Kitchen Services
+          </h1>
+        </div>
+
         <BookingForm
           serviceCatalog={KITCHEN_SERVICES}
           servicePrompt="What kitchen service do you need?"

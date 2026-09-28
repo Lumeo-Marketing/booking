@@ -116,6 +116,15 @@ function Index() {
 
         </div>
 
+        <div className="mb-5 text-center">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-blue-700/80">
+            BlueHippo
+          </p>
+          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-blue-700 sm:text-3xl">
+            HVAC Services
+          </h1>
+        </div>
+
         <BookingForm />
       </div>
     </main>
